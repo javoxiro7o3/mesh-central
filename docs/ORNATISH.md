@@ -7,6 +7,9 @@ Bu hujjat ikki qismdan iborat:
 
 Arxitektura, brending nuqtalari va xavfsizlik modeli haqida: [`README.md`](../README.md).
 
+Serverni avval internetli tarmoqda sinab, keyin yopiq tarmoqqa ko'chirmoqchi bo'lsangiz:
+[`KOCHIRISH.md`](KOCHIRISH.md) (Qo'llanma 2).
+
 ---
 
 # I QISM. TALABLAR

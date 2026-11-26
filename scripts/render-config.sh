@@ -32,8 +32,10 @@ for v in "${STRING_VARS[@]}"; do
   export "$v=$esc"
 done
 export SERVER_PORT="${SERVER_PORT:-443}"
+export MESH_NET="${MESH_NET:-172.31.250}"
+[[ "$MESH_NET" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]] || die "MESH_NET 3 oktetli bo'lishi kerak (masalan 172.31.250)"
 # shellcheck disable=SC2016  # envsubst uchun literal ${VAR} ro'yxati
-subst_list=$(printf '${%s} ' "${STRING_VARS[@]}" SERVER_PORT)
+subst_list=$(printf '${%s} ' "${STRING_VARS[@]}" SERVER_PORT MESH_NET)
 
 tmp=$(mktemp)
 envsubst "$subst_list" < "$TEMPLATE" > "$tmp"

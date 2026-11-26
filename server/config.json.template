@@ -7,8 +7,8 @@
     "aliasPort": ${SERVER_PORT},
     "redirPort": 0,
     "exactPorts": true,
-    "tlsOffload": "172.31.250.10",
-    "trustedProxy": "172.31.250.10",
+    "tlsOffload": "${MESH_NET}.10",
+    "trustedProxy": "${MESH_NET}.10",
 
     "mongoDb": "mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongodb:27017/?authSource=admin",
     "mongoDbName": "meshcentral",

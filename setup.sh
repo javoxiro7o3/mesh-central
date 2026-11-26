@@ -110,7 +110,7 @@ fi
 cat <<EOF
 
 ${c_ok}==================== TAYYOR ====================${c_off}
- Web-panel : https://${SERVER_HOST}:${SERVER_PORT}/
+ Web-panel : https://${SERVER_HOST}:${SERVER_PORT:-443}/
  Login     : ${ADMIN_USER}
  Parol     : $( [ "${GENERATED_ADMIN_PW:-0}" = 1 ] && echo "${ADMIN_PASSWORD}  (avtomatik — .env da saqlangan, birinchi kirishda almashtiring)" || echo "(.env dagi ADMIN_PASSWORD)" )
  Installer : agent/out/${INSTALLER_NAME}.exe

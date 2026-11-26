@@ -24,6 +24,7 @@ masofaviy boshqaruv platformasi:
 ```
 
 > **Talablar va bosqichma-bosqich o'rnatish (server + filial kompyuterlari):** [`docs/ORNATISH.md`](docs/ORNATISH.md)
+> **Internetli tarmoqda sinab, keyin yopiq tarmoqqa (boshqa IP bilan) ko'chirish:** [`docs/KOCHIRISH.md`](docs/KOCHIRISH.md)
 
 ---
 
@@ -54,6 +55,9 @@ masofaviy boshqaruv platformasi:
 │   ├── gen-tls.sh               # nginx sertifikati (faqat serverda)
 │   ├── bootstrap.sh             # admin akkaunt + qurilma guruhi
 │   ├── make-offline-bundle.sh   # air-gapped server uchun images+repo arxivi
+│   ├── export-airgap.sh         # sinovdan o'tgan serverni (data + image + paketlar) ko'chirish paketi
+│   ├── import-airgap.sh         # yopiq serverda paketni ochish va ishga tushirish
+│   ├── reconfigure-network.sh   # serverni yangi IP/DNS, allowlist, Docker subnet'ga moslash
 │   └── lib.sh
 ├── agent/
 │   ├── build-agent.sh           # 3-bosqich: serverdan agent -> ServerID tekshiruvi -> NSIS -> .exe

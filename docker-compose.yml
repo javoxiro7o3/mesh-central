@@ -29,7 +29,8 @@ services:
       - ./data/meshcentral-backups:/opt/meshcentral/meshcentral-backups
       - ./data/tls/server.crt:/opt/meshcentral/tls/server.crt:ro
     networks:
-      meshnet: { ipv4_address: 172.31.250.20 }
+      meshnet:
+        ipv4_address: "${MESH_NET:-172.31.250}.20"
     depends_on:
       mongodb: { condition: service_healthy, required: false }
     logging: *logging
@@ -46,7 +47,8 @@ services:
     volumes:
       - ./data/mongodb:/data/db
     networks:
-      meshnet: { ipv4_address: 172.31.250.30 }
+      meshnet:
+        ipv4_address: "${MESH_NET:-172.31.250}.30"
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
       interval: 10s
@@ -67,7 +69,8 @@ services:
       - ./data/tls:/etc/nginx/tls:ro
       - ./agent/out:/usr/share/nginx/dl:ro
     networks:
-      meshnet: { ipv4_address: 172.31.250.10 }
+      meshnet:
+        ipv4_address: "${MESH_NET:-172.31.250}.10"
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
       interval: 30s
@@ -80,4 +83,4 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: 172.31.250.0/24
+        - subnet: "${MESH_NET:-172.31.250}.0/24"
