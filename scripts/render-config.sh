@@ -26,6 +26,14 @@ STRING_VARS=(SERVER_HOST MONGO_ROOT_USER MONGO_ROOT_PASSWORD DB_ENCRYPT_KEY SESS
 [ -n "${SERVER_HOST:-}" ] || die "SERVER_HOST bo'sh (.env)"
 [[ "${SERVER_PORT:-443}" =~ ^[0-9]+$ ]] || die "SERVER_PORT raqam bo'lishi kerak"
 
+# Allowlist berilgan bo'lsa serverning o'zini qo'shamiz: 127.0.0.1 (healthcheck, meshctrl) va
+# Docker gateway ${MESH_NET}.1 (serverning o'zidan kelgan ulanishlar, selftest agenti).
+# Tashqi agent/foydalanuvchilarning haqiqiy IP'si X-Forwarded-For orqali tekshiriladi.
+_net="${MESH_NET:-172.31.250}"
+add_self() { local v="$1" x; for x in 127.0.0.1 "${_net}.1"; do [[ ",$v," == *",$x,"* ]] || v="$v,$x"; done; printf '%s' "$v"; }
+[ -n "${AGENT_ALLOWED_IP:-}" ] && AGENT_ALLOWED_IP=$(add_self "$AGENT_ALLOWED_IP")
+[ -n "${USER_ALLOWED_IP:-}" ]  && USER_ALLOWED_IP=$(add_self "$USER_ALLOWED_IP")
+
 # JSON-escape (tashqi qo'shtirnoqsiz) — envsubst faqat ro'yxatdagi o'zgaruvchilarni almashtiradi
 for v in "${STRING_VARS[@]}"; do
   esc=$(printf '%s' "${!v:-}" | jq -Rsa . | sed -e 's/^"//' -e 's/"$//')

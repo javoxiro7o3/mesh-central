@@ -3,6 +3,7 @@
 #  reconfigure-network.sh — mavjud serverni BOSHQA tarmoq/IP ga moslash.
 #  (Sinov tarmog'idan yopiq tarmoqqa ko'chirgandan keyin yoki server IP o'zgarganda.)
 #
+#    sudo scripts/reconfigure-network.sh                       # IP avtomatik aniqlanadi
 #    sudo scripts/reconfigure-network.sh --host 192.168.50.10
 #    sudo scripts/reconfigure-network.sh --host rmm.corp.local \
 #         --agent-ip 192.168.0.0/16 --user-ip 192.168.1.0/24 --mesh-net 10.250.250 --purge-devices
@@ -36,7 +37,11 @@ while [ $# -gt 0 ]; do
     *) die "noma'lum parametr: $1 (--help)" ;;
   esac
 done
-[ -n "$NEW_HOST" ] || die "--host majburiy (yangi IP yoki DNS nom)"
+if [ -z "$NEW_HOST" ]; then
+  NEW_HOST=$(detect_host)
+  [ -n "$NEW_HOST" ] || die "server IP aniqlanmadi — --host bilan bering"
+  warn "--host berilmadi: serverning joriy IP'si olindi: $NEW_HOST"
+fi
 [ -f "$REPO_ROOT/.env" ] || die ".env topilmadi — bu skript o'rnatilgan/ko'chirilgan server uchun"
 cd "$REPO_ROOT"
 load_env

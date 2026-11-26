@@ -2,7 +2,7 @@
 # =============================================================================
 #  setup.sh — markaziy serverni NOLDAN ishchi holatga keltiradi (1 komanda).
 #
-#    git clone https://git.corp.local/it/mesh-central.git && cd mesh-central
+#    git clone https://github.com/javoxiro7o3/mesh-central.git /opt/mesh-central && cd /opt/mesh-central
 #    sudo ./setup.sh                          # internet bor: image shu yerda yig'iladi
 #    sudo ./setup.sh --host 10.8.0.1          # agentlar ulanadigan manzilni aniq berish
 #    sudo ./setup.sh --bundle dist/corp-mesh-offline-*.tar.gz   # air-gapped server
@@ -105,6 +105,9 @@ compose ps
 if [ "$BUILD_AGENT" = 1 ]; then
   log "8/8 Windows installer (EnterpriseAgent_Setup.exe)"
   if bash agent/build-agent.sh; then :; else warn "installer yig'ilmadi — keyinroq: sudo agent/build-agent.sh"; fi
+  log "Yakuniy tekshiruv (selftest)"
+  SELFTEST_OK=1
+  bash scripts/selftest.sh || SELFTEST_OK=0
 fi
 
 cat <<EOF
@@ -117,3 +120,4 @@ ${c_ok}==================== TAYYOR ====================${c_off}
  Zaxira    : data/meshcentral-backups/ (har 24 soatda)
 ==================================================
 EOF
+if [ "${SELFTEST_OK:-1}" = 0 ]; then warn "selftest'da xatolar bor — yuqoridagi FAIL qatorlarini ko'ring"; exit 1; fi

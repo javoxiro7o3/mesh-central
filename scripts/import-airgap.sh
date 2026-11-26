@@ -4,13 +4,14 @@
 #  va uni yangi tarmoqqa moslaydi. Paket ichida keladi (export-airgap.sh qo'shadi).
 #
 #    tar -xf mesh-transfer-<sana>.tar && cd mesh-transfer-<sana>
+#    sudo ./import-airgap.sh                     # server IP avtomatik aniqlanadi
 #    sudo ./import-airgap.sh --host 192.168.50.10 --agent-ip 192.168.0.0/16
 #
 #  Parametrlar:
 #    --dir PATH       o'rnatish papkasi (standart /opt/mesh-central)
 #    --force          papka bo'sh bo'lmasa ham ustidan yozish
 #    qolgan barcha parametrlar scripts/reconfigure-network.sh ga uzatiladi:
-#    --host (majburiy) --agent-ip --user-ip --bind --mesh-net --keep-tls --purge-devices --no-agent
+#    --host (berilmasa avtomatik) --agent-ip --user-ip --bind --mesh-net --keep-tls --purge-devices --no-agent
 # =============================================================================
 set -euo pipefail
 c_ok=$'\033[1;32m'; c_info=$'\033[1;34m'; c_err=$'\033[1;31m'; c_off=$'\033[0m'
@@ -29,7 +30,6 @@ while [ $# -gt 0 ]; do
     *) PASS+=("$1"); shift ;;
   esac
 done
-printf '%s\n' "${PASS[@]}" | grep -qx -- '--host' || die "--host majburiy (yopiq tarmoqdagi server IP yoki DNS nomi)"
 
 # --- 1. Yaxlitlik ---------------------------------------------------------------------
 log "1/5 Paket yaxlitligi (SHA256)"
@@ -73,4 +73,7 @@ docker load -i "$PKG/images.tar.gz" | sed 's/^/    /'
 
 # --- 5. Yangi tarmoqqa moslash va ishga tushirish ---------------------------------------------
 log "5/5 Yangi tarmoq sozlamalari"
-exec bash "$TARGET/scripts/reconfigure-network.sh" "${PASS[@]}"
+bash "$TARGET/scripts/reconfigure-network.sh" "${PASS[@]}"
+
+log "Yakuniy tekshiruv (selftest)"
+exec bash "$TARGET/scripts/selftest.sh"

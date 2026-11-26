@@ -1,0 +1,167 @@
+# Windows installer'ni HAQIQIY Windows'da sinash (windows-2022 runner):
+#   MeshCentral shu mashinada (Docker'siz) ishga tushiriladi -> guruh -> brendlangan agent (.msh ichida)
+#   -> EnterpriseAgent.nsi bilan installer -> jim o'rnatish -> tekshiruvlar:
+#   xizmat, 5s recovery, watchdog, firewall, quvvat, sertifikat omborlari o'zgarmagan, serverga online,
+#   jarayon o'ldirilganda qayta ko'tarilishi, qayta ishga tushirishda idempotentlik, /UNINSTALL.
+name: e2e-windows
+
+on:
+  push:
+    paths:
+      - "agent/installer/**"
+      - "branding/**"
+      - "server/config.json.template"
+      - "scripts/fetch-agent-binaries.sh"
+      - "upstream.lock"
+      - ".github/ci/**"
+      - ".github/workflows/e2e-windows.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  installer:
+    runs-on: windows-2022
+    timeout-minutes: 60
+    env:
+      MC: C:\mc
+      ADMINPW: E2e-Test-Pass-123!
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+
+      - name: MeshCentral (pinned commit) + agent binari
+        shell: bash
+        run: |
+          set -a; . ./upstream.lock; set +a
+          mkdir -p /c/mc/meshcentral-data/branding && cd /c/mc
+          git init -q meshcentral && cd meshcentral
+          git remote add origin "$MESHCENTRAL_REPO" && git fetch -q --depth 1 origin "$MESHCENTRAL_REF" && git checkout -q FETCH_HEAD
+          npm ci --omit=dev --no-audit --no-fund
+          bash "$GITHUB_WORKSPACE/scripts/fetch-agent-binaries.sh" /c/mc/meshcentral MeshService64.exe
+          node "$GITHUB_WORKSPACE/.github/ci/win-config.js" > /c/mc/meshcentral-data/config.json
+          cp "$GITHUB_WORKSPACE"/branding/assets/* /c/mc/meshcentral-data/branding/
+
+      - name: Server, admin, guruh, agent yuklash
+        shell: pwsh
+        run: |
+          Set-Location $env:MC
+          node meshcentral\meshcentral.js --createaccount admin --pass $env:ADMINPW --email admin@e2e.test | Select-Object -Last 2
+          node meshcentral\meshcentral.js --adminaccount admin | Select-Object -Last 1
+          Start-Process node -ArgumentList 'meshcentral\meshcentral.js' -WorkingDirectory $env:MC `
+            -RedirectStandardOutput "$env:MC\server.log" -RedirectStandardError "$env:MC\server.err" -WindowStyle Hidden
+          $ok = $false
+          for ($i = 0; $i -lt 90; $i++) { Start-Sleep 3; if ((curl.exe -sk https://localhost/health.ashx) -eq 'ok') { $ok = $true; break } }
+          Get-Content "$env:MC\server.log" -Tail 15
+          if (-not $ok) { Get-Content "$env:MC\server.err"; throw "server ishga tushmadi" }
+          $mc = @('meshcentral\meshctrl.js','--url','wss://localhost:443','--loginuser','admin','--loginpass',$env:ADMINPW)
+          node @mc adddevicegroup --name Filiallar
+          $groups = node @mc listdevicegroups --json | ConvertFrom-Json
+          $meshid = ($groups | Where-Object name -eq 'Filiallar' | Select-Object -First 1)._id.Split('/')[2]
+          "MESHID=$meshid" | Out-File -Append $env:GITHUB_ENV
+          curl.exe -fsSk "https://localhost/meshagents?id=4&meshid=$meshid" -o "$env:MC\agent-x64.exe"
+          $msh = curl.exe -fsSk "https://localhost/meshsettings?id=$meshid"
+          $msh | Select-String '^(MeshServer|ServerID|nocertstore|meshServiceName)='
+          if (-not ($msh -match 'nocertstore=1')) { throw "nocertstore yo'q" }
+          (Get-Item "$env:MC\agent-x64.exe").VersionInfo | Format-List FileDescription, ProductName, CompanyName, FileVersion
+
+      - name: Installer yig'ish (NSIS)
+        shell: pwsh
+        run: |
+          $nsis = "${env:ProgramFiles(x86)}\NSIS\makensis.exe"
+          if (-not (Test-Path $nsis)) { choco install nsis -y --no-progress | Out-Null }
+          $brand = @{}
+          Get-Content branding\brand.env | Where-Object { $_ -match '^\s*([A-Z0-9_]+)="?(.*?)"?\s*$' } | ForEach-Object { $brand[$Matches[1]] = $Matches[2] }
+          Copy-Item agent\installer\EnterpriseAgent.nsi, agent\installer\postinstall.ps1 $env:MC
+          Copy-Item branding\assets\agent.ico "$env:MC\agent.ico"
+          Set-Location $env:MC
+          & $nsis -V2 -INPUTCHARSET UTF8 "-DBRAND=$($brand.BRAND_NAME)" "-DBRAND_KEY=$($brand.AGENT_SERVICE_NAME)" `
+            "-DSERVICE_NAME=$($brand.AGENT_SERVICE_NAME)" "-DPUBLISHER=$($brand.INSTALLER_PUBLISHER)" "-DCOPYRIGHT=$($brand.AGENT_COPYRIGHT)" `
+            "-DVERSION=$($brand.AGENT_FILE_VERSION)" -DSERVER_HOST=localhost -DSERVER_PORT=443 -DICON=agent.ico `
+            -DPOSTINSTALL=postinstall.ps1 -DAGENT_X64=agent-x64.exe -DOUTFILE=EnterpriseAgent_Setup.exe EnterpriseAgent.nsi
+          if ($LASTEXITCODE -ne 0) { throw "makensis failed" }
+          Get-Item EnterpriseAgent_Setup.exe | Format-List Name, Length
+
+      - name: Jim o'rnatish va tekshiruvlar
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $svc = 'EnterpriseAgent'; $log = 'C:\ProgramData\EnterpriseAgent\install.log'
+          function Check($cond, $msg) { if ($cond) { Write-Host "PASS  $msg" } else { Write-Host "FAIL  $msg"; $script:fail++ } }
+          $fail = 0
+          $sysMy = 'Registry::HKEY_USERS\S-1-5-18\Software\Microsoft\SystemCertificates\My\Certificates'
+          $before = @{
+            root = (Get-ChildItem Cert:\LocalMachine\Root).Count
+            my   = (Get-ChildItem Cert:\LocalMachine\My).Count
+            sys  = @(Get-ChildItem $sysMy -ErrorAction SilentlyContinue).Count
+          }
+
+          $p = Start-Process "$env:MC\EnterpriseAgent_Setup.exe" -Wait -PassThru
+          Get-Content $log
+          Check ($p.ExitCode -eq 0) "installer exit code 0 (haqiqiy: $($p.ExitCode))"
+
+          $s = Get-CimInstance Win32_Service -Filter "Name='$svc'"
+          Check ($s -and $s.State -eq 'Running') "xizmat '$svc' ishlayapti"
+          Check ($s.StartMode -eq 'Auto') "xizmat avtomatik ishga tushadi"
+          Check ($s.StartName -eq 'LocalSystem') "xizmat SYSTEM nomidan"
+          Write-Host "exe: $($s.PathName)"
+          $qf = (sc.exe qfailure $svc) -join "`n"; Write-Host $qf
+          Check (([regex]::Matches($qf, 'RESTART -- Delay = 5000')).Count -ge 3) "recovery: 3 x restart / 5000 ms"
+          Check ((sc.exe qfailureflag $svc) -join ' ' -match 'TRUE') "failureflag (crash bo'lmagan to'xtashlarda ham)"
+          Check ($null -ne (Get-ScheduledTask -TaskName "$svc-Watchdog" -ErrorAction SilentlyContinue)) "watchdog task"
+          $rules = @(Get-NetFirewallRule -Group 'Korxona RMM Agent' -ErrorAction SilentlyContinue)
+          Check ($rules.Count -eq 3) "firewall qoidalari: $($rules.Count)/3"
+          $pc = (powercfg /q SCHEME_CURRENT SUB_SLEEP STANDBYIDLE) -join "`n"
+          Check ($pc -match 'Current AC Power Setting Index: 0x00000000') "sleep (AC) = never"
+          Check ((Get-ChildItem Cert:\LocalMachine\Root).Count -eq $before.root) "LocalMachine\Root o'zgarmadi ($($before.root))"
+          Check ((Get-ChildItem Cert:\LocalMachine\My).Count -eq $before.my) "LocalMachine\My o'zgarmadi"
+          Check (@(Get-ChildItem $sysMy -ErrorAction SilentlyContinue).Count -eq $before.sys) "SYSTEM CurrentUser\My o'zgarmadi (nocertstore)"
+          Check ((Get-Content $log -Raw) -match 'OK: agent ishlayapti') "install.log: agent serverga ulangan"
+
+          # serverda online
+          $mc = @("$env:MC\meshcentral\meshctrl.js",'--url','wss://localhost:443','--loginuser','admin','--loginpass',$env:ADMINPW)
+          $online = $false
+          for ($i = 0; $i -lt 20; $i++) { $d = node @mc listdevices --json | ConvertFrom-Json; if (@($d | Where-Object { $_.conn -band 1 }).Count -ge 1) { $online = $true; break }; Start-Sleep 3 }
+          Check $online "qurilma web-panelda online"
+          $d | Select-Object name, conn, agent | Format-Table | Out-String | Write-Host
+
+          # recovery: jarayonni o'ldirish
+          $pid1 = (Get-CimInstance Win32_Service -Filter "Name='$svc'").ProcessId
+          Stop-Process -Id $pid1 -Force
+          $back = $false
+          for ($i = 0; $i -lt 30; $i++) { Start-Sleep 1; $c = Get-CimInstance Win32_Service -Filter "Name='$svc'"; if ($c.State -eq 'Running' -and $c.ProcessId -ne $pid1) { $back = $true; break } }
+          Check $back "jarayon o'ldirilgandan keyin $i s ichida qayta ishga tushdi"
+
+          # idempotentlik
+          $p2 = Start-Process "$env:MC\EnterpriseAgent_Setup.exe" -Wait -PassThru
+          Check ($p2.ExitCode -eq 0 -and ((Get-Content $log -Raw) -match 'allaqachon')) "qayta ishga tushirish: o'tkazib yuborildi"
+
+          # o'chirish
+          $p3 = Start-Process "$env:MC\EnterpriseAgent_Setup.exe" -ArgumentList '/UNINSTALL' -Wait -PassThru
+          Start-Sleep 5
+          Check ($p3.ExitCode -eq 0) "/UNINSTALL exit 0"
+          Check ($null -eq (Get-Service $svc -ErrorAction SilentlyContinue)) "xizmat o'chirildi"
+          Check (@(Get-NetFirewallRule -Group 'Korxona RMM Agent' -ErrorAction SilentlyContinue).Count -eq 0) "firewall qoidalari o'chirildi"
+          Check ($null -eq (Get-ScheduledTask -TaskName "$svc-Watchdog" -ErrorAction SilentlyContinue)) "watchdog o'chirildi"
+          Get-Content $log -Tail 15
+          if ($fail -gt 0) { throw "$fail ta tekshiruv FAIL" }
+          Write-Host "HAMMASI OK"
+
+      - name: Loglar
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force C:\out | Out-Null
+          Copy-Item C:\ProgramData\EnterpriseAgent\install.log, "$env:MC\server.log", "$env:MC\server.err", "$env:MC\EnterpriseAgent_Setup.exe" C:\out -ErrorAction SilentlyContinue
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-windows-${{ github.run_number }}
+          path: C:\out
+          retention-days: 14
