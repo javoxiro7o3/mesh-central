@@ -36,6 +36,10 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
 
+      - name: .ps1 fayllar faqat ASCII (Windows PowerShell 5.1 uchun)
+        shell: bash
+        run: if grep -nP '[^\x00-\x7F]' agent/installer/*.ps1 agent/meshagent/*.ps1; then exit 1; fi
+
       - name: MeshCentral (pinned commit) + agent binari
         shell: bash
         run: |
@@ -102,6 +106,7 @@ jobs:
             sys  = @(Get-ChildItem $sysMy -ErrorAction SilentlyContinue).Count
           }
 
+          Write-Host "server health: $(curl.exe -sk https://localhost/health.ashx)"
           $p = Start-Process "$env:MC\EnterpriseAgent_Setup.exe" -Wait -PassThru
           Get-Content $log
           Check ($p.ExitCode -eq 0) "installer exit code 0 (haqiqiy: $($p.ExitCode))"
@@ -127,7 +132,12 @@ jobs:
           # serverda online
           $mc = @("$env:MC\meshcentral\meshctrl.js",'--url','wss://localhost:443','--loginuser','admin','--loginpass',$env:ADMINPW)
           $online = $false
-          for ($i = 0; $i -lt 20; $i++) { $d = node @mc listdevices --json | ConvertFrom-Json; if (@($d | Where-Object { $_.conn -band 1 }).Count -ge 1) { $online = $true; break }; Start-Sleep 3 }
+          for ($i = 0; $i -lt 20; $i++) {
+            $raw = (node @mc listdevices --json 2>&1) -join "`n"
+            try { $d = $raw | ConvertFrom-Json } catch { Write-Host "meshctrl: $raw"; $d = @() }
+            if (@($d | Where-Object { $_.conn -band 1 }).Count -ge 1) { $online = $true; break }
+            Start-Sleep 3
+          }
           Check $online "qurilma web-panelda online"
           $d | Select-Object name, conn, agent | Format-Table | Out-String | Write-Host
 

@@ -39,6 +39,8 @@ jobs:
           sudo apt-get install -y -qq shellcheck gettext-base >/dev/null
           shellcheck -x setup.sh update.sh scripts/*.sh agent/build-agent.sh
           node --check scripts/rebrand.js scripts/pin-optional-modules.js
+          # Windows PowerShell 5.1 BOM'siz faylni ANSI deb o'qiydi: non-ASCII belgilar sintaksisni buzadi
+          if grep -nP '[^\x00-\x7F]' agent/installer/*.ps1 agent/meshagent/*.ps1; then echo "::error::.ps1 fayllar faqat ASCII bo'lishi kerak"; exit 1; fi
 
       - name: Read upstream.lock
         id: meta

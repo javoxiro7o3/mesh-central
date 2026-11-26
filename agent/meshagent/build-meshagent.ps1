@@ -1,12 +1,12 @@
 <#
-  build-meshagent.ps1 — IXTIYORIY: MeshAgent'ni manba koddan o'z brendingiz bilan kompilyatsiya qilish.
+  build-meshagent.ps1 - IXTIYORIY: MeshAgent'ni manba koddan o'z brendingiz bilan kompilyatsiya qilish.
 
   Qachon kerak?  Ko'p hollarda KERAK EMAS. MeshCentral server agentni yuklab berishda:
     - xizmat nomi / ko'rinadigan nom / kompaniya  -> agentCustomization (.msh orqali)
     - EXE VERSIONINFO + ikonka                      -> agentFileInfo (PE resurslarini qayta yozadi)
     - o'z codesign sertifikati bilan imzo            -> avtomatik
   Agent binarining ICHIDAGI satrlarni (standart xizmat nomi "Mesh Agent", sertifikat CN,
-  resurs ikonkalari) o'zgartirish yoki agentga o'z kodingizni qo'shish kerak bo'lsa — shu skript.
+  resurs ikonkalari) o'zgartirish yoki agentga o'z kodingizni qo'shish kerak bo'lsa - shu skript.
 
   Talab: Windows 10/11 yoki Server 2022, Visual Studio 2022 (Desktop C++ workload, ARM64 tools),
          Git, Node.js (manifest uchun). CI: .github/workflows/meshagent-windows.yml
@@ -46,7 +46,7 @@ Get-ChildItem "$RepoRoot\patches\meshagent\*.patch" -ErrorAction SilentlyContinu
 }
 
 # --- Brending: standart xizmat nomi va VERSIONINFO --------------------------------------
-# DIQQAT: agentcore.c dagi "Mesh Agent" taqqoslashlari (sertifikat CN tanlovi) o'zgartirilmaydi —
+# DIQQAT: agentcore.c dagi "Mesh Agent" taqqoslashlari (sertifikat CN tanlovi) o'zgartirilmaydi -
 # biz nocertstore=1 ishlatamiz, shuning uchun bu kod yo'li ishlamaydi.
 $sm = "$work\meshservice\ServiceMain.c"
 (Get-Content $sm -Raw) -replace 'TCHAR\* serviceFile = TEXT\("Mesh Agent"\);', "TCHAR* serviceFile = TEXT(`"$svc`");" |

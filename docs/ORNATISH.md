@@ -418,13 +418,13 @@ Hech narsa chiqmasligi kerak — sertifikat omborlariga yozuv yo'q.
 | Desktop | qurilma → "Desktop" → "Connect" | ekran ko'rinadi; foydalanuvchida bildirishnoma va maxfiylik paneli |
 | Terminal | "Terminal" → "Admin Shell" | `whoami` → `nt authority\system` |
 | Files | "Files" | `C:\` ko'rinadi, fayl yuklash/olish ishlaydi |
-| Recovery | PowerShell: `Stop-Process -Name MeshAgent -Force` | ~5 s da xizmat qayta ishlaydi, qurilma online |
+| Recovery | PowerShell: `Stop-Process -Name EnterpriseAgent -Force` | ~5 s da xizmat qayta ishlaydi, qurilma online |
 | Watchdog | `Stop-Service EnterpriseAgent` | ≤1 daqiqada qayta ishlaydi |
 | Sleep | kompyuterni bir necha soat qoldiring | uxlamaydi, online qoladi |
 | Reboot | qurilma → "Actions" → "Restart" | qayta yuklangandan keyin o'zi online bo'ladi |
 
-> `MeshAgent.exe` — o'rnatilgan agent jarayoni nomi (fayl nomi o'zgarmaydi, xizmat nomi
-> `EnterpriseAgent`). Aniq yo'l: `(Get-CimInstance Win32_Service -Filter "Name='EnterpriseAgent'").PathName`.
+> O'rnatilgan agent: `C:\Program Files\Korxona\EnterpriseAgent\EnterpriseAgent.exe`, xizmat nomi
+> `EnterpriseAgent` (Windows Server 2022 da sinab tasdiqlangan).
 
 ### 5.4. Agentni o'chirish
 

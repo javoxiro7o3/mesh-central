@@ -1,5 +1,5 @@
 <#
-  postinstall.ps1 — EnterpriseAgent_Setup.exe ichida, SYSTEM/admin huquqi bilan ishlaydi.
+  postinstall.ps1 - EnterpriseAgent_Setup.exe ichida, SYSTEM/admin huquqi bilan ishlaydi.
   Windows 10/11 Home va Pro, Server 2016+ (PowerShell 5.1) uchun.
 
   Bajaradi:
@@ -68,7 +68,7 @@ for ($i = 0; $i -lt 30 -and -not $svc; $i++) {
   $svc = Get-CimInstance Win32_Service -Filter "Name='$ServiceName'" -ErrorAction SilentlyContinue
   if (-not $svc) { Start-Sleep -Seconds 1 }
 }
-if (-not $svc) { Log "ERROR: '$ServiceName' xizmati topilmadi — agent o'rnatilmagan"; exit 1 }
+if (-not $svc) { Log "ERROR: '$ServiceName' xizmati topilmadi - agent o'rnatilmagan"; exit 1 }
 
 $exe = $svc.PathName
 if ($exe -match '^\s*"([^"]+)"') { $exe = $Matches[1] } elseif ($exe -match '^\s*(\S+\.exe)') { $exe = $Matches[1] }
@@ -78,13 +78,13 @@ Log "service: $ServiceName | exe: $exe | start: $($svc.StartMode)"
 $sc = "$env:SystemRoot\System32\sc.exe"
 Run $sc "config `"$ServiceName`" start= auto"
 # 3 ta harakat: restart/5000ms; keyingi har qanday nosozlikda oxirgi harakat takrorlanadi.
-# reset= 86400 — xatolar hisoblagichi 1 kunda nolga tushadi.
+# reset= 86400 - xatolar hisoblagichi 1 kunda nolga tushadi.
 Run $sc "failure `"$ServiceName`" reset= 86400 actions= restart/5000/restart/5000/restart/5000"
 # Xizmat xato kodi bilan "toza" to'xtasa ham (crash bo'lmasa ham) recovery ishlasin
 Run $sc "failureflag `"$ServiceName`" 1"
 
 # ------------------------------------------------------------------ 3. watchdog
-# Recovery faqat nosozlikda ishlaydi; kimdir xizmatni qo'lda to'xtatsa — watchdog 1 daqiqada qaytaradi.
+# Recovery faqat nosozlikda ishlaydi; kimdir xizmatni qo'lda to'xtatsa - watchdog 1 daqiqada qaytaradi.
 $wdCmd = "cmd.exe /c sc.exe query $ServiceName | find \`"RUNNING\`" >nul || sc.exe start $ServiceName"
 try {
   $action    = New-ScheduledTaskAction -Execute 'cmd.exe' -Argument ("/c sc.exe query `"$ServiceName`" | find `"RUNNING`" >nul || sc.exe start `"$ServiceName`"")
@@ -97,7 +97,7 @@ try {
     -Principal $principal -Settings $settings -Description "$Brand agent watchdog" -Force | Out-Null
   Log "watchdog task: $WatchdogTask (har 1 daqiqa + startup)"
 } catch {
-  Log "watchdog (ScheduledTasks moduli) xato: $($_.Exception.Message) — schtasks.exe bilan"
+  Log "watchdog (ScheduledTasks moduli) xato: $($_.Exception.Message) - schtasks.exe bilan"
   Run "$env:SystemRoot\System32\schtasks.exe" "/Create /TN `"$WatchdogTask`" /SC MINUTE /MO 1 /RU SYSTEM /RL HIGHEST /F /TR `"$wdCmd`""
 }
 
@@ -114,7 +114,7 @@ foreach ($g in $schemes) {
 }
 Run $pc "/setactive SCHEME_CURRENT"
 Run $pc "/hibernate off"                          # hiberfil.sys + Fast Startup o'chadi
-# Fast Startup (HiberbootEnabled) — alohida ham o'chiramiz
+# Fast Startup (HiberbootEnabled) - alohida ham o'chiramiz
 New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power' -Name HiberbootEnabled `
   -PropertyType DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
 

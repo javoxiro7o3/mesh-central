@@ -23,6 +23,8 @@ masofaviy boshqaruv platformasi:
                                                   └───────────────────────────────────────────────────────┘
 ```
 
+> ## ▶ Boshlash: [`QOLLANMA.md`](QOLLANMA.md) — boshidan oxirigacha (internetli sinov → yopiq tarmoq → filiallar)
+>
 > **Talablar va bosqichma-bosqich o'rnatish (server + filial kompyuterlari):** [`docs/ORNATISH.md`](docs/ORNATISH.md)
 > **Internetli tarmoqda sinab, keyin yopiq tarmoqqa (boshqa IP bilan) ko'chirish:** [`docs/KOCHIRISH.md`](docs/KOCHIRISH.md)
 
