@@ -1,0 +1,48 @@
+# Haftada bir marta upstream MeshCentral'da yangi RELIZ (package.json versiyasi o'zgargan) bormi
+# tekshiradi va upstream.lock ni yangilovchi PR ochadi. PR'da server-image build + smoke test o'tadi;
+# siz faqat ko'rib chiqib merge qilasiz.
+name: upstream-sync
+
+on:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare upstream version
+        id: up
+        run: |
+          set -a; . ./upstream.lock; set +a
+          tmp=$(mktemp -d)
+          git -C "$tmp" init -q && git -C "$tmp" remote add origin https://github.com/Ylianst/MeshCentral.git
+          git -C "$tmp" fetch -q --depth 1 origin master
+          new_ref=$(git -C "$tmp" rev-parse FETCH_HEAD)
+          new_ver=$(git -C "$tmp" show FETCH_HEAD:package.json | jq -r .version)
+          git -C "$tmp" fetch -q --depth 1 origin "$MESHCENTRAL_REF"
+          cur_ver=$(git -C "$tmp" show FETCH_HEAD:package.json | jq -r .version)
+          echo "current=$cur_ver new=$new_ver ($new_ref)"
+          if [ "$new_ver" != "$cur_ver" ]; then
+            sed -i "s|^MESHCENTRAL_REF=.*|MESHCENTRAL_REF=$new_ref|; s|^# MeshCentral .*|# MeshCentral $new_ver ($(date +%F))|" upstream.lock
+            echo "changed=true"  >> "$GITHUB_OUTPUT"
+            echo "version=$new_ver" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: peter-evans/create-pull-request@v7
+        if: steps.up.outputs.changed == 'true'
+        with:
+          branch: upstream/meshcentral-${{ steps.up.outputs.version }}
+          title: "Upstream: MeshCentral ${{ steps.up.outputs.version }}"
+          commit-message: "upstream: MeshCentral ${{ steps.up.outputs.version }}"
+          body: |
+            Upstream MeshCentral yangi versiyasi: **${{ steps.up.outputs.version }}**.
+            Tekshiruv ro'yxati:
+            - [ ] `server-image` build va smoke test yashil
+            - [ ] `patches/meshcentral/*.patch` muammosiz qo'llandi
+            - [ ] Changelog: https://github.com/Ylianst/MeshCentral/commits/master

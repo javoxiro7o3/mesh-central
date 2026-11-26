@@ -1,0 +1,106 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Ylianst/MeshCentral/master/meshcentral-config-schema.json",
+  "__comment__": "GENERATSIYA QILINGAN FAYL. Tahrirlash: server/config.json.template + .env + branding/brand.env, keyin ./update.sh --config",
+  "settings": {
+    "cert": "${SERVER_HOST}",
+    "port": 4430,
+    "aliasPort": ${SERVER_PORT},
+    "redirPort": 0,
+    "exactPorts": true,
+    "tlsOffload": "172.31.250.10",
+    "trustedProxy": "172.31.250.10",
+
+    "mongoDb": "mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongodb:27017/?authSource=admin",
+    "mongoDbName": "meshcentral",
+    "dbEncryptKey": "${DB_ENCRYPT_KEY}",
+    "sessionKey": "${SESSION_KEY}",
+
+    "__airgap__": "Tashqi internetga chiqadigan barcha mexanizmlar o'chirilgan",
+    "selfUpdate": false,
+    "agentDownloads": { "enabled": false, "checkIntervalHours": 0, "fetchReleases": false },
+    "agentTimeStampServer": false,
+    "plugins": { "enabled": false },
+    "publicPushNotifications": false,
+
+    "__security__": "Agent faqat shu serverga bog'lanadi; IP allowlist; brute-force himoya",
+    "agentSignLock": true,
+    "agentAllowedIP": "${AGENT_ALLOWED_IP}",
+    "userAllowedIP": "${USER_ALLOWED_IP}",
+    "maxInvalidLogin": { "time": 10, "count": 10, "coolofftime": 30 },
+    "allowFraming": false,
+
+    "__performance__": "LAN/VPN uchun maksimal sifat",
+    "webRTC": true,
+    "allowHighQualityDesktop": true,
+    "desktopMultiplex": true,
+    "compression": true,
+    "wsCompression": true,
+    "agentWsCompression": true,
+    "agentPong": 60,
+    "browserPong": 60,
+    "agentCoreDump": false,
+
+    "autoBackup": {
+      "backupIntervalHours": 24,
+      "keepLastDaysBackup": 14,
+      "backupPath": "/opt/meshcentral/meshcentral-backups",
+      "zipPassword": "${BACKUP_ZIP_PASSWORD}",
+      "mongoDumpPath": "/usr/bin/mongodump"
+    }
+  },
+  "domains": {
+    "": {
+      "title": "${BRAND_NAME}",
+      "title2": "${BRAND_TITLE2}",
+      "titlePicture": "branding/title.png",
+      "loginPicture": "branding/login.png",
+      "welcomePicture": "branding/welcome.jpg",
+      "welcomeText": "${BRAND_WELCOME_TEXT}",
+      "footer": "${BRAND_FOOTER}",
+      "loginFooter": "${BRAND_FOOTER}",
+      "meshMessengerTitle": "${BRAND_NAME}",
+      "minify": true,
+
+      "certUrl": "file:///opt/meshcentral/tls/server.crt",
+      "newAccounts": false,
+      "userNameIsEmail": false,
+      "passwordRequirements": { "min": 10, "upper": 1, "lower": 1, "numeric": 1, "nonalpha": 1, "banCommonPasswords": true },
+      "geoLocation": false,
+      "agentNoProxy": true,
+      "lockAgentDownload": false,
+
+      "ssh": true,
+      "mstsc": true,
+      "novnc": false,
+      "localSessionRecording": false,
+      "_sessionRecording": { "__comment__": "Yoqish uchun pastki chiziqni olib tashlang", "index": true, "protocols": [ 1, 2, 101 ] },
+
+      "myServer": { "Backup": true, "Restore": true, "Upgrade": false, "ErrorLog": true, "Console": true, "Trace": true, "Config": false },
+
+      "consentMessages": { "Title": "${CONSENT_TITLE}" },
+      "desktopPrivacyBarText": "${PRIVACY_BAR_TEXT}",
+      "userConsentFlags": { "desktopnotify": true, "desktopprivacybar": true },
+
+      "agentCustomization": {
+        "displayName": "${AGENT_DISPLAY_NAME}",
+        "description": "${AGENT_DESCRIPTION}",
+        "companyName": "${COMPANY_NAME}",
+        "serviceName": "${AGENT_SERVICE_NAME}",
+        "fileName": "${AGENT_FILE_NAME}",
+        "foregroundColor": "${BRAND_FG}",
+        "backgroundColor": "${BRAND_BG}"
+      },
+      "agentFileInfo": {
+        "fileDescription": "${AGENT_DISPLAY_NAME}",
+        "fileVersion": "${AGENT_FILE_VERSION}",
+        "internalName": "${AGENT_FILE_NAME}",
+        "legalCopyright": "${AGENT_COPYRIGHT}",
+        "originalFilename": "${AGENT_FILE_NAME}.exe",
+        "productName": "${AGENT_DISPLAY_NAME}",
+        "productVersion": "${AGENT_FILE_VERSION}",
+        "icon": "branding/agent.ico"
+      },
+      "agentConfig": [ "nocertstore=1" ]
+    }
+  }
+}

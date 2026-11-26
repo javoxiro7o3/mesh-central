@@ -1,0 +1,83 @@
+# =============================================================================
+#  Korxona MeshCentral stack:  nginx (TLS) -> meshcentral (Node.js) -> mongodb
+#  Ishga tushirish: ./setup.sh   (bir martalik)   |   yangilash: ./update.sh
+#  DB_ENGINE=nedb bo'lsa .env da COMPOSE_PROFILES= (bo'sh) qiling — mongodb ishga tushmaydi.
+# =============================================================================
+name: corp-mesh
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "20m", max-file: "5" }
+
+services:
+  meshcentral:
+    image: ${IMAGE_NAME:-corp/meshcentral}:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+      args:
+        MESHCENTRAL_REPO: ${MESHCENTRAL_REPO:-https://github.com/Ylianst/MeshCentral.git}
+        MESHCENTRAL_REF: ${MESHCENTRAL_REF:-01f2d97fd818bbc7c7bb61a0d93c580e8eb10ba4}
+        BUILD_REVISION: ${BUILD_REVISION:-local}
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-Asia/Tashkent}
+    volumes:
+      - ./data/meshcentral-data:/opt/meshcentral/meshcentral-data
+      - ./data/meshcentral-files:/opt/meshcentral/meshcentral-files
+      - ./data/meshcentral-web:/opt/meshcentral/meshcentral-web:ro
+      - ./data/meshcentral-backups:/opt/meshcentral/meshcentral-backups
+      - ./data/tls/server.crt:/opt/meshcentral/tls/server.crt:ro
+    networks:
+      meshnet: { ipv4_address: 172.31.250.20 }
+    depends_on:
+      mongodb: { condition: service_healthy, required: false }
+    logging: *logging
+
+  mongodb:
+    image: mongo:7.0
+    profiles: ["mongodb"]
+    restart: unless-stopped
+    command: ["--wiredTigerCacheSizeGB", "1", "--bind_ip_all"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-meshadmin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?MONGO_ROOT_PASSWORD .env da berilmagan}
+      TZ: ${TZ:-Asia/Tashkent}
+    volumes:
+      - ./data/mongodb:/data/db
+    networks:
+      meshnet: { ipv4_address: 172.31.250.30 }
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    logging: *logging
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on: [meshcentral]
+    ports:
+      - "${SERVER_BIND:-0.0.0.0}:${SERVER_PORT:-443}:443"
+      - "${SERVER_BIND:-0.0.0.0}:80:80"
+    volumes:
+      - ./server/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./data/tls:/etc/nginx/tls:ro
+      - ./agent/out:/usr/share/nginx/dl:ro
+    networks:
+      meshnet: { ipv4_address: 172.31.250.10 }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging: *logging
+
+networks:
+  meshnet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.31.250.0/24

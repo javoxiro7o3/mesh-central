@@ -1,0 +1,119 @@
+# Server image: har push'da yig'iladi, registry'ga push qilinadi, offline bundle artefakt sifatida saqlanadi.
+name: server-image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "server/**"
+      - "scripts/**"
+      - "branding/**"
+      - "patches/meshcentral/**"
+      - "agent/custom-bin/**"
+      - "upstream.lock"
+      - ".github/workflows/server-image.yml"
+  workflow_dispatch:
+    inputs:
+      offline_bundle:
+        description: "Air-gapped server uchun offline bundle yaratilsinmi?"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/corp-meshcentral
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint (shellcheck + JSON template)
+        run: |
+          sudo apt-get install -y -qq shellcheck gettext-base >/dev/null
+          shellcheck -x setup.sh update.sh scripts/*.sh agent/build-agent.sh
+          node --check scripts/rebrand.js scripts/pin-optional-modules.js
+
+      - name: Read upstream.lock
+        id: meta
+        run: |
+          set -a; . ./upstream.lock; set +a
+          echo "repo=$MESHCENTRAL_REPO" >> "$GITHUB_OUTPUT"
+          echo "ref=$MESHCENTRAL_REF"   >> "$GITHUB_OUTPUT"
+          echo "tag=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: server/Dockerfile
+          push: true
+          load: true
+          build-args: |
+            MESHCENTRAL_REPO=${{ steps.meta.outputs.repo }}
+            MESHCENTRAL_REF=${{ steps.meta.outputs.ref }}
+            BUILD_REVISION=${{ steps.meta.outputs.tag }}
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test (image ichida agent binarlari va offline modullar)
+        run: |
+          docker run --rm --entrypoint sh ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }} -c '
+            set -e; cd /opt/meshcentral/meshcentral
+            ls -la agents/MeshService64.exe agents/MeshService.exe
+            node -e "require(\"mongodb\"); require(\"ssh2\"); require(\"image-size\"); console.log(\"modules ok\")"
+            ls views/translations | head -3'
+
+      - name: Offline bundle
+        if: github.event_name == 'workflow_dispatch' && inputs.offline_bundle
+        env:
+          IMAGE_NAME: ${{ env.IMAGE }}
+        run: |
+          docker build -q -t corp/nsis-builder:latest agent/installer
+          docker pull -q mongo:7.0 && docker pull -q nginx:1.27-alpine
+          T=${{ steps.meta.outputs.tag }}; W=$(mktemp -d)
+          docker save -o $W/images.tar $IMAGE_NAME:$T mongo:7.0 nginx:1.27-alpine corp/nsis-builder:latest
+          printf '%s' "$T" > $W/IMAGE_TAG
+          git archive --format=tar -o $W/repo.tar HEAD
+          mkdir -p dist && tar -C $W -czf dist/corp-mesh-offline-$T.tar.gz images.tar IMAGE_TAG repo.tar
+          sha256sum dist/*.tar.gz > dist/SHA256SUMS
+
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'workflow_dispatch' && inputs.offline_bundle
+        with:
+          name: offline-bundle-${{ steps.meta.outputs.tag }}
+          path: dist/
+          retention-days: 30
+
+  # LAN ichidagi self-hosted runner (server yoki bastion). Runner'da: sudo NOPASSWD shu repo skriptlari uchun.
+  deploy:
+    needs: build
+    runs-on: [self-hosted, linux, mesh-server]
+    environment: production        # GitHub'da "required reviewers" bilan qo'lda tasdiqlash
+    if: vars.AUTO_DEPLOY == 'true'
+    steps:
+      - name: Update server to new image
+        run: |
+          cd /opt/mesh-central
+          git fetch --quiet origin main && git reset --hard origin/main
+          sudo ./update.sh --image ${{ needs.build.outputs.tag }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ needs.build.outputs.tag }}
+          path: /opt/mesh-central/agent/out/*.exe

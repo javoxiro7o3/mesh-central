@@ -1,0 +1,40 @@
+# IXTIYORIY: MeshAgent'ni manba koddan brend bilan kompilyatsiya qilish (Windows runner, VS2022).
+# Natija PR sifatida agent/custom-bin/ ga qo'shiladi -> server-image workflow image'ni qayta yig'adi
+# -> server ulangan barcha agentlarni avtomatik yangilaydi.
+name: meshagent-windows
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Agent release tegi (masalan corp-1.0.1)"
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Build MeshAgent (x64, x86, ARM64)
+        shell: pwsh
+        run: ./agent/meshagent/build-meshagent.ps1 -Tag "${{ inputs.tag }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: meshagent-${{ inputs.tag }}
+          path: agent/custom-bin/
+      - name: Open PR
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: meshagent/${{ inputs.tag }}
+          title: "MeshAgent custom build ${{ inputs.tag }}"
+          commit-message: "agent: custom MeshAgent build ${{ inputs.tag }}"
+          add-paths: agent/custom-bin/*
+          body: |
+            Custom MeshAgent binarlari va `custom-manifest.json` (SHA384).
+            Merge qilingach `server-image` workflow image'ni qayta yig'adi.

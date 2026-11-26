@@ -1,0 +1,23 @@
+/*
+ * Korxona brend uslublari — MeshCentral har bir sahifadan keyin avtomatik yuklaydi
+ * (meshcentral-web/public/styles/custom.css). Upstream fayllariga tegmasdan dizayn o'zgaradi.
+ * Ranglarni branding/brand.env dagi BRAND_BG bilan moslang.
+ */
+:root {
+  --corp-primary: #0B3D91;
+  --corp-primary-dark: #072A66;
+  --corp-accent: #F2A900;
+}
+
+/* Klassik UI (default.handlebars) yuqori panel */
+#masthead, #topbar, .topbar, #page_leftbar { background-color: var(--corp-primary) !important; }
+#topbar .topbar_text, #masthead span, #masthead a { color: #fff !important; }
+
+/* Zamonaviy UI (default3.handlebars, Bootstrap 5) */
+.navbar.bg-primary, .bg-primary { background-color: var(--corp-primary) !important; }
+.btn-primary { background-color: var(--corp-primary); border-color: var(--corp-primary-dark); }
+.btn-primary:hover { background-color: var(--corp-primary-dark); }
+a, .link-primary { color: var(--corp-primary); }
+
+/* Login sahifasi */
+#loginpanel, #createpanel, #resetpanel { border-top: 4px solid var(--corp-accent); }

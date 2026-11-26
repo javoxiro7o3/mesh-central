@@ -1,0 +1,13 @@
+# Sirlar va ish vaqtidagi ma'lumotlar
+.env
+data/
+dist/
+build/
+*.tar
+*.tar.gz
+*.tar.zst
+
+# Agent build natijalari
+agent/out/
+
+node_modules/
