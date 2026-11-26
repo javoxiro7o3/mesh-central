@@ -23,6 +23,8 @@ masofaviy boshqaruv platformasi:
                                                   └───────────────────────────────────────────────────────┘
 ```
 
+> **Talablar va bosqichma-bosqich o'rnatish (server + filial kompyuterlari):** [`docs/ORNATISH.md`](docs/ORNATISH.md)
+
 ---
 
 ## Repozitoriya tuzilmasi
