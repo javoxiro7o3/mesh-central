@@ -61,16 +61,16 @@ jobs:
           Start-Process node -ArgumentList 'meshcentral\meshcentral.js' -WorkingDirectory $env:MC `
             -RedirectStandardOutput "$env:MC\server.log" -RedirectStandardError "$env:MC\server.err" -WindowStyle Hidden
           $ok = $false
-          for ($i = 0; $i -lt 90; $i++) { Start-Sleep 3; if ((curl.exe -sk https://localhost/health.ashx) -eq 'ok') { $ok = $true; break } }
+          for ($i = 0; $i -lt 90; $i++) { Start-Sleep 3; if ((curl.exe -sk https://127.0.0.1/health.ashx) -eq 'ok') { $ok = $true; break } }
           Get-Content "$env:MC\server.log" -Tail 15
           if (-not $ok) { Get-Content "$env:MC\server.err"; throw "server ishga tushmadi" }
-          $mc = @('meshcentral\meshctrl.js','--url','wss://localhost:443','--loginuser','admin','--loginpass',$env:ADMINPW)
+          $mc = @('meshcentral\meshctrl.js','--url','wss://127.0.0.1:443','--loginuser','admin','--loginpass',$env:ADMINPW)
           node @mc adddevicegroup --name Filiallar
           $groups = node @mc listdevicegroups --json | ConvertFrom-Json
           $meshid = ($groups | Where-Object name -eq 'Filiallar' | Select-Object -First 1)._id.Split('/')[2]
           "MESHID=$meshid" | Out-File -Append $env:GITHUB_ENV
-          curl.exe -fsSk "https://localhost/meshagents?id=4&meshid=$meshid" -o "$env:MC\agent-x64.exe"
-          $msh = curl.exe -fsSk "https://localhost/meshsettings?id=$meshid"
+          curl.exe -fsSk "https://127.0.0.1/meshagents?id=4&meshid=$meshid" -o "$env:MC\agent-x64.exe"
+          $msh = curl.exe -fsSk "https://127.0.0.1/meshsettings?id=$meshid"
           $msh | Select-String '^(MeshServer|ServerID|nocertstore|meshServiceName)='
           if (-not ($msh -match 'nocertstore=1')) { throw "nocertstore yo'q" }
           (Get-Item "$env:MC\agent-x64.exe").VersionInfo | Format-List FileDescription, ProductName, CompanyName, FileVersion
@@ -87,7 +87,7 @@ jobs:
           Set-Location $env:MC
           & $nsis -V2 -INPUTCHARSET UTF8 "-DBRAND=$($brand.BRAND_NAME)" "-DBRAND_KEY=$($brand.AGENT_SERVICE_NAME)" `
             "-DSERVICE_NAME=$($brand.AGENT_SERVICE_NAME)" "-DPUBLISHER=$($brand.INSTALLER_PUBLISHER)" "-DCOPYRIGHT=$($brand.AGENT_COPYRIGHT)" `
-            "-DVERSION=$($brand.AGENT_FILE_VERSION)" "-DSERVER_HOST=localhost" "-DSERVER_PORT=443" "-DICON=agent.ico" `
+            "-DVERSION=$($brand.AGENT_FILE_VERSION)" "-DSERVER_HOST=127.0.0.1" "-DSERVER_PORT=443" "-DICON=agent.ico" `
             "-DPOSTINSTALL=postinstall.ps1" "-DAGENT_X64=agent-x64.exe" "-DOUTFILE=EnterpriseAgent_Setup.exe" "EnterpriseAgent.nsi"
           if ($LASTEXITCODE -ne 0) { throw "makensis failed" }
           Get-Item EnterpriseAgent_Setup.exe | Format-List Name, Length
@@ -107,12 +107,12 @@ jobs:
           }
 
           # GitHub runner oldingi qadamdagi fon jarayonlarini to'xtatadi — serverni shu qadamda qayta ko'taramiz
-          if ((curl.exe -sk https://localhost/health.ashx) -ne 'ok') {
+          if ((curl.exe -sk https://127.0.0.1/health.ashx) -ne 'ok') {
             Start-Process node -ArgumentList 'meshcentral\meshcentral.js' -WorkingDirectory $env:MC `
               -RedirectStandardOutput "$env:MC\server2.log" -RedirectStandardError "$env:MC\server2.err" -WindowStyle Hidden
-            for ($i = 0; $i -lt 60; $i++) { Start-Sleep 2; if ((curl.exe -sk https://localhost/health.ashx) -eq 'ok') { break } }
+            for ($i = 0; $i -lt 60; $i++) { Start-Sleep 2; if ((curl.exe -sk https://127.0.0.1/health.ashx) -eq 'ok') { break } }
           }
-          Write-Host "server health: $(curl.exe -sk https://localhost/health.ashx)"
+          Write-Host "server health: $(curl.exe -sk https://127.0.0.1/health.ashx)"
           $p = Start-Process "$env:MC\EnterpriseAgent_Setup.exe" -Wait -PassThru
           Get-Content $log
           Check ($p.ExitCode -eq 0) "installer exit code 0 (haqiqiy: $($p.ExitCode))"
@@ -136,7 +136,7 @@ jobs:
           Check ((Get-Content $log -Raw) -match 'OK: agent ishlayapti') "install.log: agent serverga ulangan"
 
           # serverda online
-          $mc = @("$env:MC\meshcentral\meshctrl.js",'--url','wss://localhost:443','--loginuser','admin','--loginpass',$env:ADMINPW)
+          $mc = @("$env:MC\meshcentral\meshctrl.js",'--url','wss://127.0.0.1:443','--loginuser','admin','--loginpass',$env:ADMINPW)
           $online = $false
           for ($i = 0; $i -lt 20; $i++) {
             $raw = (node @mc listdevices --json 2>&1) -join "`n"
@@ -166,7 +166,13 @@ jobs:
           Check (@(Get-NetFirewallRule -Group 'Korxona RMM Agent' -ErrorAction SilentlyContinue).Count -eq 0) "firewall qoidalari o'chirildi"
           Check ($null -eq (Get-ScheduledTask -TaskName "$svc-Watchdog" -ErrorAction SilentlyContinue)) "watchdog o'chirildi"
           Get-Content $log -Tail 15
-          if ($fail -gt 0) { throw "$fail ta tekshiruv FAIL" }
+          if ($fail -gt 0) {
+            Write-Host "---- diagnostika ----"
+            Test-NetConnection 127.0.0.1 -Port 443 | Format-List ComputerName, RemotePort, TcpTestSucceeded
+            foreach ($f in "$env:MC\server.log", "$env:MC\server2.log", "$env:MC\server2.err") { if (Test-Path $f) { "== $f"; Get-Content $f -Tail 40 } }
+            Get-ChildItem 'C:\Program Files\Korxona\EnterpriseAgent' -ErrorAction SilentlyContinue | Format-Table Name, Length
+            throw "$fail ta tekshiruv FAIL"
+          }
           Write-Host "HAMMASI OK"
 
       - name: Loglar
@@ -174,7 +180,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force C:\out | Out-Null
-          Copy-Item C:\ProgramData\EnterpriseAgent\install.log, "$env:MC\server.log", "$env:MC\server.err", "$env:MC\EnterpriseAgent_Setup.exe" C:\out -ErrorAction SilentlyContinue
+          Copy-Item C:\ProgramData\EnterpriseAgent\install.log, "$env:MC\server*.log", "$env:MC\server*.err", "$env:MC\EnterpriseAgent_Setup.exe" C:\out -ErrorAction SilentlyContinue
       - uses: actions/upload-artifact@v4
         if: always()
         with:

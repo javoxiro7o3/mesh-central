@@ -118,14 +118,21 @@ Run $pc "/hibernate off"                          # hiberfil.sys + Fast Startup 
 New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power' -Name HiberbootEnabled `
   -PropertyType DWord -Value 0 -Force -ErrorAction SilentlyContinue | Out-Null
 
-if (Get-Command Set-NetAdapterPowerManagement -ErrorAction SilentlyContinue) {
+# "Allow the computer to turn off this device to save power" = off (Device Manager > NIC > Power Management).
+# Set-NetAdapterPowerManagement'da bunday parametr yo'q; to'g'ri joy - WMI MSPower_DeviceEnable.
+try {
+  $pm = @(Get-CimInstance -Namespace root\wmi -ClassName MSPower_DeviceEnable -ErrorAction Stop)
   Get-NetAdapter -Physical -ErrorAction SilentlyContinue | ForEach-Object {
-    try {
-      Set-NetAdapterPowerManagement -Name $_.Name -AllowComputerToTurnOffDevice Disabled -ErrorAction Stop
-      Log "NIC power-saving off: $($_.Name)"
-    } catch { Log "NIC $($_.Name): $($_.Exception.Message)" }
+    $nic = $_
+    $pnp = [regex]::Escape($nic.PnPDeviceID)
+    $hit = @($pm | Where-Object { $_.InstanceName -match "^$pnp" })
+    if ($hit.Count -eq 0) { Log "NIC $($nic.Name): quvvat boshqaruvi yo'q (VM yoki drayver qo'llamaydi)" }
+    foreach ($h in $hit) {
+      if ($h.Enable) { $h | Set-CimInstance -Property @{ Enable = $false } -ErrorAction Stop; Log "NIC power-saving off: $($nic.Name)" }
+      else { Log "NIC power-saving allaqachon off: $($nic.Name)" }
+    }
   }
-}
+} catch { Log "NIC power-saving: $($_.Exception.Message)" }
 
 # ------------------------------------------------------------------ 5. firewall
 Remove-AgentFirewallRules

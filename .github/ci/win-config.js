@@ -12,7 +12,7 @@ for (const line of fs.readFileSync(path.join(root, 'branding', 'brand.env'), 'ut
     if (m) env[m[1]] = m[2];
 }
 Object.assign(env, {
-    SERVER_HOST: 'localhost', SERVER_PORT: '443', MESH_NET: '127.0.0', MONGO_ROOT_USER: 'x', MONGO_ROOT_PASSWORD: 'x',
+    SERVER_HOST: '127.0.0.1', SERVER_PORT: '443', MESH_NET: '127.0.0', MONGO_ROOT_USER: 'x', MONGO_ROOT_PASSWORD: 'x',
     DB_ENCRYPT_KEY: 'e2eDbEncryptKey0123456789', SESSION_KEY: 'e2eSessionKey0123456789', BACKUP_ZIP_PASSWORD: 'x',
     AGENT_ALLOWED_IP: '', USER_ALLOWED_IP: ''
 });
@@ -23,7 +23,7 @@ text = text.replace(/\$\{([A-Z0-9_]+)\}/g, (_, k) => {
 });
 const cfg = JSON.parse(text);
 const s = cfg.settings, d = cfg.domains[''];
-s.cert = 'localhost'; s.port = 443; s.redirPort = 0;
+s.cert = '127.0.0.1'; s.port = 443; s.redirPort = 0;
 for (const k of ['aliasPort', 'tlsOffload', 'trustedProxy', 'mongoDb', 'mongoDbName', 'autoBackup', 'agentAllowedIP', 'userAllowedIP']) delete s[k];
 delete d.certUrl;
 d.minify = false; // upstream git'da *-min.handlebars yo'q (ular Docker build'da generatsiya qilinadi)
