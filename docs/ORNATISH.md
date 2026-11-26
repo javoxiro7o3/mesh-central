@@ -78,20 +78,33 @@ Bu rolni GitHub Actions ham bajara oladi (`server-image` workflow, `offline_bund
 | Sertifikat | **hech narsa o'rnatish kerak emas** (Root CA yo'q) |
 | Antivirus | Defender/AV agentni "remote admin tool" deb belgilashi mumkin — markaziy siyosatda ruxsat bering (5.6-bo'lim) |
 
-## 3. Oldindan tayyorlab qo'yiladigan ma'lumotlar
+## 3. Sizdan nima talab qilinadi
 
-| # | Nima | Qayerga yoziladi |
-|---|---|---|
-| 1 | Server manzili (IP yoki DNS) | `setup.sh --host` yoki `.env` → `SERVER_HOST` |
-| 2 | Korxona nomi, mahsulot nomi, agent xizmati nomi | `branding/brand.env` |
-| 3 | Logotiplar (o'lchamlar quyida) | `branding/assets/`, `branding/web/public/` |
-| 4 | Administrator e-mail | `.env` → `ADMIN_EMAIL` |
-| 5 | Filial tarmoqlari IP diapazonlari | `.env` → `AGENT_ALLOWED_IP` |
-| 6 | Administratorlar tarmog'i (ixtiyoriy) | `.env` → `USER_ALLOWED_IP` (`127.0.0.1` bilan!) |
-| 7 | Birinchi qurilma guruhi nomi | `.env` → `DEFAULT_GROUP` |
-| 8 | Code-signing sertifikati `.pfx` (ixtiyoriy) | `.env` → `CODESIGN_PFX`, `CODESIGN_PASS` |
-| 9 | Korxona CA bergan TLS sertifikat (ixtiyoriy) | `data/tls/server.crt` + `server.key` |
-| 10 | Git hosting (GitHub org yoki ichki Gitea/GitLab) | fork'lar va shu repo |
+**Majburiy hech narsa yo'q.** Repo to'liq sozlangan holda keladi:
+
+| Narsa | Holati |
+|---|---|
+| Upstream MeshCentral | `upstream.lock` da aniq commit (1.3.2) — fork kerak emas |
+| Brending | standart nomlar (`Korxona RMM`, xizmat `EnterpriseAgent`) va vaqtinchalik logolar tayyor |
+| Server manzili | `setup.sh` serverning IP'sini o'zi aniqlaydi |
+| Parollar, kalitlar, sertifikatlar | `setup.sh` o'zi generatsiya qiladi va `.env` ga yozadi |
+| Admin akkaunti, qurilma guruhi | avtomatik yaratiladi (`admin`, `Filiallar`) |
+| Filial IP diapazonlari | standart: barcha xususiy tarmoqlar (`10/8`, `172.16/12`, `192.168/16`) |
+| Windows installer | avtomatik yig'iladi |
+
+### Ixtiyoriy: o'zingizga moslash
+
+O'rnatishdan **oldin** o'zgartirsangiz — darhol qo'llanadi; keyin o'zgartirsangiz —
+`sudo ./update.sh --config` (matn/rasm) yoki `sudo ./update.sh` (nomlar view'larga build vaqtida yoziladi).
+
+| Nima | Qayerda |
+|---|---|
+| Korxona va mahsulot nomi, agent xizmati nomi, ranglar | `branding/brand.env` |
+| Logotiplar (o'lchamlar quyida) | `branding/assets/`, `branding/web/public/` |
+| Server manzilini aniq berish (DNS nom tavsiya) | `setup.sh --host rmm.corp.local` |
+| Filial va admin IP diapazonlarini cheklash | `.env` → `AGENT_ALLOWED_IP`, `USER_ALLOWED_IP` |
+| Installer'ni code-signing sertifikati bilan imzolash | `.env` → `CODESIGN_PFX`, `CODESIGN_PASS` |
+| Korxona CA bergan TLS sertifikati | `data/tls/server.crt` + `server.key`, keyin `sudo ./update.sh --config` |
 
 Logotip fayllari (nomlari aynan shunday bo'lsin):
 
@@ -106,57 +119,22 @@ Logotip fayllari (nomlari aynan shunday bo'lsin):
 | `branding/web/public/android-chrome-192x192.png`, `-512x512.png` | 192, 512 | mobil / PWA |
 | `branding/web/public/images/logoback.png` | 512×512 | mobil fon |
 
-Vaqtinchalik logolar uchun: `python3 branding/generate-placeholders.py` (Pillow kerak).
-
 ## 4. Tayyorgarlik nazorat ro'yxati
 
-- [ ] Server: OS o'rnatilgan, statik IP/DNS, 443 port bo'sh (`ss -ltnp | grep ':443'` hech narsa ko'rsatmaydi)
+- [ ] Server: Ubuntu 22.04/24.04 (yoki Debian 12 / Rocky 9) o'rnatilgan, statik IP
+- [ ] 443 port bo'sh: `ss -ltnp | grep ':443'` hech narsa ko'rsatmaydi
 - [ ] Filiallardan serverga 443/tcp ochiq (VPN, marshrut, firewall)
-- [ ] `upstream.lock` — fork URL'lari (yoki rasmiy upstream qoldirildi)
-- [ ] `branding/brand.env` to'ldirilgan, logotiplar almashtirilgan
-- [ ] Air-gapped bo'lsa: serverda Docker + utilitalar, offline bundle tayyor
-- [ ] Test uchun kamida bitta Windows **Home** va bitta **Pro** kompyuter (yoki VM)
+- [ ] Sinov uchun kamida bitta Windows **Home** va bitta **Pro** kompyuter (yoki VM)
 
 ---
 
 # II QISM. TO'LIQ O'RNATISH VA ISHGA TUSHIRISH
 
-## 1-qadam. Repozitoriyani tayyorlash (bir marta)
+> Korxona tarmog'ingiz internetga ulanmagan bo'lsa: serverni avval shu qo'llanma bo'yicha
+> **internetli** mashinada o'rnatib sinang, keyin [`KOCHIRISH.md`](KOCHIRISH.md) bo'yicha
+> yopiq tarmoqqa ko'chiring.
 
-### 1.1. Fork'lar
-
-GitHub'da (yoki ichki Git serverda):
-
-- `Ylianst/MeshCentral` → `<org>/MeshCentral` (Fork)
-- `Ylianst/MeshAgent` → `<org>/MeshAgent` (faqat agentni o'zingiz kompilyatsiya qilsangiz)
-
-### 1.2. Platforma repo'sini sozlash
-
-```bash
-git clone https://github.com/<org>/mesh-central.git
-```
-
-```bash
-cd mesh-central
-```
-
-`upstream.lock` ni oching va `MESHCENTRAL_REPO` ni fork'ingiz URL'iga almashtiring
-(commit `MESHCENTRAL_REF` o'zgarmaydi — u fork'da ham mavjud).
-
-`branding/brand.env` ni to'ldiring, logotiplarni `branding/assets/` va `branding/web/public/`
-ga qo'ying (I qism, 3-bo'lim), keyin:
-
-```bash
-git add -A && git commit -m "branding: korxona" && git push
-```
-
-> Maxfiy ma'lumotlar (`.env`, `data/`) Git'ga **tushmaydi** — `.gitignore` da.
-
-## 2-qadam. Markaziy serverni o'rnatish
-
-Ikki variantdan birini tanlang: **2.2** (serverda internet bor) yoki **2.3** (air-gapped).
-
-### 2.1. Server firewall'i
+## 1-qadam. Server firewall'i
 
 Ubuntu/Debian (ufw):
 
@@ -171,91 +149,70 @@ sudo firewall-cmd --permanent --add-service=https --add-service=http && sudo fir
 ```
 
 > Docker o'zi `iptables` qoidalarini qo'shadi; yuqoridagilar host firewall'i yoqilgan bo'lsa kerak.
-> 443 portni faqat VPN interfeysida ochmoqchi bo'lsangiz `.env` da `SERVER_BIND=10.8.0.1` qiling.
 
-### 2.2. Variant A — serverda internet bor
+## 2-qadam. Markaziy serverni o'rnatish (bitta buyruq)
+
+### 2.1. O'rnatish
 
 ```bash
-sudo git clone https://github.com/<org>/mesh-central.git /opt/mesh-central
+curl -fsSL https://raw.githubusercontent.com/javoxiro7o3/mesh-central/HEAD/install.sh | sudo bash
+```
+
+Bu buyruq: `git` o'rnatadi → repo'ni `/opt/mesh-central` ga oladi → `setup.sh` ni ishga tushiradi.
+`setup.sh` esa Docker'ni o'rnatadi, parollarni generatsiya qiladi, TLS sertifikat, config, image
+(10–20 daqiqa), admin, qurilma guruhi va Windows installer'ni tayyorlaydi va oxirida
+**selftest** bilan hammasini tekshiradi.
+
+Server manzilini aniq berish (masalan DNS nom yoki WireGuard IP):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/javoxiro7o3/mesh-central/HEAD/install.sh | sudo bash -s -- --host rmm.corp.local
+```
+
+100 tagacha qurilma uchun MongoDB o'rniga yengilroq NeDB (o'rnatishdan **oldin**):
+
+```bash
+sudo mkdir -p /opt/mesh-central && sudo git clone https://github.com/javoxiro7o3/mesh-central.git /opt/mesh-central
 ```
 
 ```bash
-cd /opt/mesh-central
+cd /opt/mesh-central && sudo cp .env.example .env && sudo sed -i 's/^DB_ENGINE=.*/DB_ENGINE=nedb/' .env && sudo ./setup.sh
 ```
 
-```bash
-sudo ./setup.sh --host rmm.corp.local
-```
-
-`--host` — agentlar ulanadigan manzil (IP yoki DNS). Berilmasa `wg0` interfeysi, u bo'lmasa
-asosiy marshrut IP'si avtomatik olinadi (ogohlantirish chiqadi).
-
-Agar MongoDB o'rniga NeDB kerak bo'lsa (100 tagacha qurilma), `setup.sh` dan **oldin**:
-
-```bash
-cp .env.example .env && sed -i 's/^DB_ENGINE=.*/DB_ENGINE=nedb/' .env
-```
-
-Birinchi ishga tushirish 10–20 daqiqa davom etadi (image build: upstream'ni yuklash, tarjimalarni
-generatsiya qilish, npm modullar, agent binarlari). Oxirida shunday blok chiqadi:
+Oxirida shunday blok chiqadi:
 
 ```
 ==================== TAYYOR ====================
- Web-panel : https://rmm.corp.local:443/
+ Web-panel : https://192.168.1.50:443/
  Login     : admin
  Parol     : Xk3...Aa1!  (avtomatik — .env da saqlangan, birinchi kirishda almashtiring)
  Installer : agent/out/EnterpriseAgent_Setup.exe
  Zaxira    : data/meshcentral-backups/ (har 24 soatda)
 ==================================================
+SELFTEST: 13/13 OK
 ```
 
-O'tkazib yuboring: **2.4-bo'lim** (tekshiruv).
-
-### 2.3. Variant B — air-gapped server
-
-**a) Build mashinasida (internet bor):**
+Parolni keyin ham ko'rish mumkin:
 
 ```bash
-git clone https://github.com/<org>/mesh-central.git && cd mesh-central
+sudo grep ADMIN_PASSWORD /opt/mesh-central/.env
 ```
+
+### 2.2. Serverni tekshirish
+
+Bitta buyruq bilan to'liq tekshiruv (o'rnatish oxirida avtomatik ham ishlaydi):
 
 ```bash
-./scripts/make-offline-bundle.sh
+cd /opt/mesh-central && sudo scripts/selftest.sh
 ```
 
-Natija: `dist/corp-mesh-offline-<tag>.tar.gz` va `.sha256`. Ikkalasini fleshka yoki ichki fayl
-serveri orqali serverga ko'chiring.
+U tekshiradi: konteynerlar sog'lom; web-panel nginx orqali HTTPS'da ochiladi va brend nomi
+ko'rinadi; installer tayyor va `/dl/` orqali yuklanadi; installer ichidagi ServerID va server
+manzili to'g'ri; **haqiqiy MeshAgent** (Linux versiyasi, shu serverning o'zida vaqtincha)
+server manzili orqali ulanib online bo'ladi; server internetga chiqishga urinmagan.
+Oxirida `SELFTEST: N/N OK` chiqishi kerak.
 
-**b) Serverda Docker'ni offline o'rnatish** (agar yo'q bo'lsa). Build mashinasida, server bilan
-bir xil OS versiyasi uchun `https://download.docker.com/linux/ubuntu/dists/<codename>/pool/stable/amd64/`
-dan quyidagi `.deb` larni yuklab oling: `containerd.io`, `docker-ce`, `docker-ce-cli`,
-`docker-buildx-plugin`, `docker-compose-plugin`. Utilitalar uchun (internetli Ubuntu'da):
-
-```bash
-mkdir debs && cd debs && apt-get download jq libjq1 libonig5 gettext-base
-```
-
-Serverda:
-
-```bash
-sudo dpkg -i ./*.deb && sudo systemctl enable --now docker
-```
-
-**c) Serverda o'rnatish:**
-
-```bash
-sha256sum -c corp-mesh-offline-<tag>.tar.gz.sha256
-```
-
-```bash
-sudo mkdir -p /opt/mesh-central && sudo tar -xzf corp-mesh-offline-<tag>.tar.gz -O repo.tar | sudo tar -x -C /opt/mesh-central
-```
-
-```bash
-cd /opt/mesh-central && sudo ./setup.sh --bundle /path/to/corp-mesh-offline-<tag>.tar.gz --host rmm.corp.local
-```
-
-### 2.4. Serverni tekshirish
+Qo'lda tekshirish:
 
 ```bash
 cd /opt/mesh-central && sudo docker compose ps
@@ -281,7 +238,7 @@ Logda bo'lishi kerak:
 `Agent downloads are disabled and meshagent_arm, … are missing` ogohlantirishi — **normal**:
 Windows va Linux x64/ARM64 dan boshqa platformalar agentlari ataylab qo'shilmagan.
 
-### 2.5. Web-panelga birinchi kirish
+### 2.3. Web-panelga birinchi kirish
 
 1. Administrator kompyuterida brauzerda `https://rmm.corp.local/` ni oching.
 2. Self-signed sertifikat ogohlantirishi chiqadi — bu **faqat administrator brauzerlariga**
@@ -301,7 +258,7 @@ Windows va Linux x64/ARM64 dan boshqa platformalar agentlari ataylab qo'shilmaga
   2FA yoqing va kerakli qurilma guruhlariga huquq bering;
 - kundalik ishni shaxsiy akkauntlar bilan qiling.
 
-### 2.6. Qo'shimcha qurilma guruhlari (ixtiyoriy)
+### 2.4. Qo'shimcha qurilma guruhlari (ixtiyoriy)
 
 Har bir filial uchun alohida guruh va alohida installer:
 

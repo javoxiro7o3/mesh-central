@@ -1,6 +1,7 @@
 # Upstream manbalar — aniq commit'ga "pin" qilingan.
-# Yangilash: scripts/bump-upstream.sh (yoki .github/workflows/upstream-sync.yml) shu faylni o'zgartiradi.
-# REPO qiymatlarini o'zingizning fork'laringizga almashtiring (masalan https://github.com/<org>/MeshCentral.git).
+# Yangilash: .github/workflows/upstream-sync.yml yangi reliz chiqqanda shu faylni o'zgartiruvchi PR ochadi.
+# Fork SHART EMAS: rasmiy upstream aniq commit bo'yicha olinadi, barcha o'zgarishlar shu repoda
+# (branding/, patches/, server/). Upstream kodini o'zgartirmoqchi bo'lsangiz — patches/ ga qo'shing.
 
 MESHCENTRAL_REPO=https://github.com/Ylianst/MeshCentral.git
 # MeshCentral 1.3.2 (2026-11-25)

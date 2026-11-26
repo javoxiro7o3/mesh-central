@@ -34,7 +34,8 @@ masofaviy boshqaruv platformasi:
 .
 ├── setup.sh                     # 2-bosqich: serverni noldan ko'tarish (1 komanda)
 ├── update.sh                    # 4-bosqich: yangilash / rollback / offline bundle
-├── upstream.lock                # upstream (yoki sizning fork) repo + aniq commit
+├── install.sh                   # bitta buyruqli o'rnatish: curl … | sudo bash
+├── upstream.lock                # upstream repo + aniq commit (fork kerak emas)
 ├── docker-compose.yml           # nginx + meshcentral + mongodb
 ├── .env.example                 # server sozlamalari (setup.sh .env yaratadi, sirlarni generatsiya qiladi)
 ├── branding/
@@ -58,6 +59,7 @@ masofaviy boshqaruv platformasi:
 │   ├── export-airgap.sh         # sinovdan o'tgan serverni (data + image + paketlar) ko'chirish paketi
 │   ├── import-airgap.sh         # yopiq serverda paketni ochish va ishga tushirish
 │   ├── reconfigure-network.sh   # serverni yangi IP/DNS, allowlist, Docker subnet'ga moslash
+│   ├── selftest.sh              # o'rnatilgan serverni to'liq tekshirish (haqiqiy agent ulanishi bilan)
 │   └── lib.sh
 ├── agent/
 │   ├── build-agent.sh           # 3-bosqich: serverdan agent -> ServerID tekshiruvi -> NSIS -> .exe
@@ -80,14 +82,9 @@ masofaviy boshqaruv platformasi:
 
 ### 1.1. Repozitoriyalar
 
-```bash
-# GitHub'da Fork tugmasi bilan (yoki ichki Gitea/GitLab'ga mirror):
-#   Ylianst/MeshCentral  ->  <org>/MeshCentral
-#   Ylianst/MeshAgent    ->  <org>/MeshAgent      (faqat agentni o'zingiz kompilyatsiya qilsangiz)
-# Shu repo (platforma/IaC) — alohida: <org>/mesh-central
-```
-
-Keyin `upstream.lock` dagi `MESHCENTRAL_REPO` / `MESHAGENT_REPO` ni fork URL'laringizga almashtiring.
+**Fork kerak emas.** Barcha korxona o'zgarishlari shu repoda: `https://github.com/javoxiro7o3/mesh-central`.
+Upstream (`Ylianst/MeshCentral`) Docker build vaqtida `upstream.lock` dagi aniq commit bo'yicha
+avtomatik yuklanadi va unga brending/patch'lar qo'llanadi.
 
 **Nega "overlay + patch" modeli, to'liq fork ichida tahrirlash emas?** Upstream juda tez
 yangilanadi (oyiga bir necha reliz). Brending va air-gap sozlamalari bu yerda **config + build
@@ -178,9 +175,8 @@ o'rniga aniq `SERVER_HOST` (IP yoki ichki DNS) va `agentAllowedIP` / `userAllowe
 ### 2.1. Internet bor server (yoki build vaqtida internet bor)
 
 ```bash
-git clone https://github.com/<org>/mesh-central.git /opt/mesh-central
-cd /opt/mesh-central
-sudo ./setup.sh --host 10.8.0.1          # agentlar ulanadigan IP/DNS (bo'lmasa wg0 -> default IP avtomatik)
+curl -fsSL https://raw.githubusercontent.com/javoxiro7o3/mesh-central/HEAD/install.sh | sudo bash
+# yoki manzilni aniq berib: ... | sudo bash -s -- --host 10.8.0.1
 ```
 
 `setup.sh` qiladi:
@@ -197,10 +193,10 @@ sudo ./setup.sh --host 10.8.0.1          # agentlar ulanadigan IP/DNS (bo'lmasa 
 
 ```bash
 # Internet bor mashinada / CI'da (server-image workflow -> "offline_bundle"):
-./scripts/make-offline-bundle.sh            # -> dist/corp-mesh-offline-<tag>.tar.gz (bir necha yuz MB)
+./scripts/make-offline-bundle.sh            # -> dist/corp-mesh-offline-*.tar.gz
 # Fleshka/ichki fayl serveri orqali ko'chirib, serverda (Docker oldindan o'rnatilgan bo'lsin):
-tar -xzf corp-mesh-offline-<tag>.tar.gz repo.tar && mkdir mesh-central && tar -xf repo.tar -C mesh-central
-cd mesh-central && sudo ./setup.sh --bundle ../corp-mesh-offline-<tag>.tar.gz --host 10.8.0.1
+tar -xzf corp-mesh-offline-*.tar.gz repo.tar && mkdir mesh-central && tar -xf repo.tar -C mesh-central
+cd mesh-central && sudo ./setup.sh --bundle ../corp-mesh-offline-*.tar.gz
 ```
 
 Bundle ichida: custom meshcentral image (npm modullar, tarjimalar, agent binarlari bilan), `mongo:7.0`,
@@ -348,7 +344,7 @@ agentlar ulana olmaydi; shuning uchun `data/meshcentral-data/*.key|*.crt` ni zax
 manzil sifatida o'zgarmas DNS nom ishlatish tavsiya etiladi.
 
 CI (`.github/workflows/server-image.yml`): `shellcheck` → image build → smoke test (agent
-binarlari, offline modullar, tarjimalar image ichida) → `ghcr.io/<org>/corp-meshcentral:<sha>` →
+binarlari, offline modullar, tarjimalar image ichida) → `ghcr.io/javoxiro7o3/corp-meshcentral:<commit>` →
 `AUTO_DEPLOY=true` va `production` environment tasdig'idan keyin LAN'dagi self-hosted runner
 (`mesh-server` label) `update.sh --image <sha>` ni bajaradi va yangi installer'ni artefakt qiladi.
 Air-gapped server uchun runner o'rniga workflow'ni `offline_bundle: true` bilan qo'lda ishga

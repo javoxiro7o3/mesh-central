@@ -62,7 +62,7 @@ installer'ni qayta tarqatishga to'g'ri keladi.
  │ 3. sudo scripts/              │ ──────────────▶ │      --host <YANGI IP yoki DNS>    │
  │    export-airgap.sh           │  xavfsiz disk   │      --agent-ip <filial tarmoqlari>│
  │    --with-debs                │                 │ 6. tekshiruv                       │
- │ => mesh-transfer-<sana>.tar   │                 │ 7. filiallarga yangi installer     │
+ │ => mesh-transfer-*.tar        │                 │ 7. filiallarga yangi installer     │
  └───────────────────────────────┘                 └───────────────────────────────────┘
 ```
 
@@ -90,22 +90,21 @@ to'g'ridan-to'g'ri o'rnatiladi.
 
 ## 1-bosqich. Internetli tarmoqda o'rnatish
 
-[`ORNATISH.md`](ORNATISH.md) ning 1–3 qadamlarini bajaring. Qisqasi:
+Internetli serverda bitta buyruq:
 
 ```bash
-sudo git clone https://github.com/<org>/mesh-central.git /opt/mesh-central
+curl -fsSL https://raw.githubusercontent.com/javoxiro7o3/mesh-central/HEAD/install.sh | sudo bash
 ```
+
+Server IP'si avtomatik aniqlanadi. Oxirida `SELFTEST: N/N OK` chiqishi kerak.
+Batafsil: [`ORNATISH.md`](ORNATISH.md), 1–3 qadamlar.
+
+DNS nom ishlatmoqchi bo'lsangiz (tavsiya), uni aniq bering — sinov tarmog'ida bu nom sinov
+server IP'siga yo'naltirilgan bo'lsin (DNS yoki sinov kompyuterlaridagi `hosts` fayli):
 
 ```bash
-cd /opt/mesh-central
+curl -fsSL https://raw.githubusercontent.com/javoxiro7o3/mesh-central/HEAD/install.sh | sudo bash -s -- --host rmm.corp.local
 ```
-
-```bash
-sudo ./setup.sh --host rmm.corp.local
-```
-
-DNS nom ishlatsangiz, sinov tarmog'ida bu nom sinov server IP'siga yo'naltirilgan bo'lsin.
-IP ishlatsangiz, sinov server IP'sini bering (`--host 203.0.113.25` kabi).
 
 > Bu bosqichda internetdan yuklanadigan hamma narsa (MeshCentral manba kodi, npm modullar,
 > agent binarlari, MongoDB va nginx image'lari, NSIS) shu serverga tushadi va keyin eksport
@@ -168,8 +167,8 @@ Skript nima qiladi:
 Natija:
 
 ```
-dist/mesh-transfer-20261126-1430.tar
-dist/mesh-transfer-20261126-1430.tar.sha256
+dist/mesh-transfer-YYYYMMDD-HHMM.tar
+dist/mesh-transfer-YYYYMMDD-HHMM.tar.sha256
 ```
 
 Oxirida chiqadigan **ServerID** ning birinchi belgilarini yozib qo'ying — yopiq serverda
@@ -188,7 +187,7 @@ tekshirasiz.
 3. Butunligini tekshiring:
 
 ```bash
-cd /root && sha256sum -c mesh-transfer-20261126-1430.tar.sha256
+cd /root && sha256sum -c mesh-transfer-*.tar.sha256
 ```
 
 Natija `OK` bo'lishi kerak.
@@ -196,11 +195,11 @@ Natija `OK` bo'lishi kerak.
 4. Paketni oching:
 
 ```bash
-tar -xf mesh-transfer-20261126-1430.tar
+tar -xf mesh-transfer-*.tar
 ```
 
 ```bash
-cd mesh-transfer-20261126-1430 && cat MANIFEST.txt
+cd mesh-transfer-*/ && cat MANIFEST.txt
 ```
 
 ---
@@ -223,7 +222,14 @@ sudo firewall-cmd --permanent --add-service=https --add-service=http && sudo fir
 
 ### 5.2. Import
 
-IP manzil bilan (misol — yopiq tarmoq `192.168.0.0/16`, server `192.168.50.10`):
+Eng oddiy holat — server IP'si avtomatik aniqlanadi, filial diapazonlari standart (barcha
+xususiy tarmoqlar):
+
+```bash
+sudo ./import-airgap.sh --purge-devices
+```
+
+Manzil va diapazonlarni aniq berish — IP bilan (misol — yopiq tarmoq `192.168.0.0/16`, server `192.168.50.10`):
 
 ```bash
 sudo ./import-airgap.sh --host 192.168.50.10 --agent-ip 192.168.0.0/16 --purge-devices
@@ -245,8 +251,8 @@ sudo ./import-airgap.sh --host 192.168.50.10 --agent-ip 192.168.0.0/16 --mesh-ne
 
 | Parametr | Majburiy | Vazifasi |
 |---|---|---|
-| `--host` | **ha** | yopiq tarmoqdagi server IP yoki DNS nomi — agentlar shu manzilga ulanadi |
-| `--agent-ip` | tavsiya | filial kompyuterlari diapazonlari (vergul bilan). Bo'sh qatorni bersangiz (`--agent-ip ""`) cheklov olinadi |
+| `--host` | yo'q | yopiq tarmoqdagi server IP yoki DNS nomi — agentlar shu manzilga ulanadi. Berilmasa serverning IP'si avtomatik olinadi |
+| `--agent-ip` | yo'q | filial kompyuterlari diapazonlari (vergul bilan). Bo'sh qatorni bersangiz (`--agent-ip ""`) cheklov olinadi |
 | `--user-ip` | yo'q | administratorlar diapazoni; `127.0.0.1` avtomatik qo'shiladi |
 | `--bind` | yo'q | nginx faqat shu IP'da tinglaydi (masalan VPN interfeysi) |
 | `--mesh-net` | yo'q | Docker ichki tarmog'i (3 oktet), masalan `10.250.250` |
@@ -270,6 +276,7 @@ sudo ./import-airgap.sh --host 192.168.50.10 --agent-ip 192.168.0.0/16 --mesh-ne
    - stack'ni qayta yaratib ishga tushiradi;
    - (`--purge-devices` bilan) sinov qurilmalari yozuvlarini o'chiradi;
    - yangi manzil bilan Windows installer'ni yig'adi.
+6. Oxirida `scripts/selftest.sh` bilan hammasini tekshiradi (haqiqiy agent ulanishi bilan).
 
 Oxirida shunday blok chiqadi:
 
@@ -284,6 +291,14 @@ Oxirida shunday blok chiqadi:
 ---
 
 ## 6-bosqich. Yopiq serverda tekshiruv
+
+Import oxirida selftest avtomatik ishlaydi; istalgan vaqtda qayta:
+
+```bash
+cd /opt/mesh-central && sudo scripts/selftest.sh
+```
+
+`SELFTEST: N/N OK` — hammasi joyida. Qo'lda tekshirish:
 
 ```bash
 cd /opt/mesh-central && sudo docker compose ps
@@ -368,10 +383,10 @@ Internetli tarmoqdagi sinov serverini yangi versiyaga yangilang va sinab ko'ring
 sudo scripts/make-offline-bundle.sh
 ```
 
-Natijani (`dist/corp-mesh-offline-<tag>.tar.gz`) yopiq serverga ko'chirib:
+Natijani (`dist/corp-mesh-offline-*.tar.gz`) yopiq serverga ko'chirib:
 
 ```bash
-cd /opt/mesh-central && sudo ./update.sh --bundle /root/corp-mesh-offline-<tag>.tar.gz
+cd /opt/mesh-central && sudo ./update.sh --bundle /root/corp-mesh-offline-*.tar.gz
 ```
 
 Bu buyruq yopiq serverning ma'lumotlari, `.env` va tarmoq sozlamalarini **saqlaydi**: faqat

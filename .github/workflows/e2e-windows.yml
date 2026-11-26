@@ -83,8 +83,8 @@ jobs:
           Set-Location $env:MC
           & $nsis -V2 -INPUTCHARSET UTF8 "-DBRAND=$($brand.BRAND_NAME)" "-DBRAND_KEY=$($brand.AGENT_SERVICE_NAME)" `
             "-DSERVICE_NAME=$($brand.AGENT_SERVICE_NAME)" "-DPUBLISHER=$($brand.INSTALLER_PUBLISHER)" "-DCOPYRIGHT=$($brand.AGENT_COPYRIGHT)" `
-            "-DVERSION=$($brand.AGENT_FILE_VERSION)" -DSERVER_HOST=localhost -DSERVER_PORT=443 -DICON=agent.ico `
-            -DPOSTINSTALL=postinstall.ps1 -DAGENT_X64=agent-x64.exe -DOUTFILE=EnterpriseAgent_Setup.exe EnterpriseAgent.nsi
+            "-DVERSION=$($brand.AGENT_FILE_VERSION)" "-DSERVER_HOST=localhost" "-DSERVER_PORT=443" "-DICON=agent.ico" `
+            "-DPOSTINSTALL=postinstall.ps1" "-DAGENT_X64=agent-x64.exe" "-DOUTFILE=EnterpriseAgent_Setup.exe" "EnterpriseAgent.nsi"
           if ($LASTEXITCODE -ne 0) { throw "makensis failed" }
           Get-Item EnterpriseAgent_Setup.exe | Format-List Name, Length
 
