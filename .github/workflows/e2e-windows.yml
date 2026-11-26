@@ -106,6 +106,12 @@ jobs:
             sys  = @(Get-ChildItem $sysMy -ErrorAction SilentlyContinue).Count
           }
 
+          # GitHub runner oldingi qadamdagi fon jarayonlarini to'xtatadi — serverni shu qadamda qayta ko'taramiz
+          if ((curl.exe -sk https://localhost/health.ashx) -ne 'ok') {
+            Start-Process node -ArgumentList 'meshcentral\meshcentral.js' -WorkingDirectory $env:MC `
+              -RedirectStandardOutput "$env:MC\server2.log" -RedirectStandardError "$env:MC\server2.err" -WindowStyle Hidden
+            for ($i = 0; $i -lt 60; $i++) { Start-Sleep 2; if ((curl.exe -sk https://localhost/health.ashx) -eq 'ok') { break } }
+          }
           Write-Host "server health: $(curl.exe -sk https://localhost/health.ashx)"
           $p = Start-Process "$env:MC\EnterpriseAgent_Setup.exe" -Wait -PassThru
           Get-Content $log
