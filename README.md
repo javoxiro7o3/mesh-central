@@ -354,21 +354,38 @@ tushirib, bundle'ni ko'chirasiz.
 
 ---
 
-## Sinovdan o'tkazilgan (shu repo bilan, MeshCentral 1.3.2 @ `01f2d97`)
+## Sinovdan o'tkazilgan
 
-- `rebrand.js`: 708 almashtirish (views, emails, translate.json); JS identifikatorlar o'zgarmadi;
-  `translate.js minifyall/translateall` muvaffaqiyatli, tarjima qilingan sahifalarda brend nomi bor.
-- `pin-optional-modules.js` + `npm ci`: mongodb 4.17.2, saslprep 1.3.1, ssh2 1.17.0, image-size 2.0.2,
-  wildleek 2.0.0, nodemailer 6.10.1, https-proxy-agent 7.0.6 — `meshcentral.js` dagi versiyalar bilan aynan.
-- `fetch-agent-binaries.sh`: Windows x64/x86/ARM64 + Linux x64/ARM64, SHA384 manifest bilan mos.
-- `render-config.sh` → MeshCentral `NPM_CONFIG_OFFLINE=true` bilan ishga tushdi, `certUrl` file:// yuklandi,
-  `--createaccount`, `meshctrl adddevicegroup`, `/meshagents`, `/meshsettings` ishladi.
-- `.msh`: `MeshServer=wss://<host>:443/agent.ashx`, `nocertstore=1`, `meshServiceName=EnterpriseAgent`;
-  `ServerID` openssl hisobi bilan aynan mos; `.msh` EXE ichida; VERSIONINFO brendlangan; Authenticode imzo bor.
-- `makensis` (3.09): 3 arxitekturali `EnterpriseAgent_Setup.exe` (~4.1 MB) yig'ildi.
-- `shellcheck` toza; `docker compose config` ikkala profil bilan to'g'ri.
+Har bir o'zgarishda GitHub Actions'da avtomatik ishlaydi (`.github/workflows/e2e-*.yml`),
+oxirgi natijalar: <https://github.com/javoxiro7o3/mesh-central/actions>.
 
-Sinovdan **o'tkazilmagan** (bu muhitda Docker daemon va Windows yo'q): `docker build` to'liq
-ishga tushirish, nginx konteyneri, `postinstall.ps1` va installer'ning haqiqiy Windows'dagi bajarilishi.
-Birinchi ishga tushirishni test VM'da (Windows 10/11 Home va Pro) qiling va
-`C:\ProgramData\EnterpriseAgent\install.log` ni tekshiring.
+**e2e-linux** (Ubuntu 24.04, haqiqiy Docker + nginx + MongoDB + MeshAgent):
+
+| Bosqich | Natija |
+|---|---|
+| `setup.sh --host mesh.e2e.test` noldan o'rnatish (image build, admin, guruh, installer) | OK, ~4 daqiqa |
+| `selftest.sh`: konteynerlar, HTTPS + sertifikat SAN, login sahifasida brend, `/dl/` installer, `.msh` yopiq (403), ServerID, **haqiqiy Linux MeshAgent nginx orqali ulanib online bo'ldi**, tashqi internetga urinish yo'q | 12/12 OK |
+| `reconfigure-network.sh` — IP'ga o'tish + Docker subnet `10.250.250` | 12/12 OK, ServerID o'zgarmadi |
+| `export-airgap.sh` -> stack o'chirildi -> `import-airgap.sh` boshqa papka, boshqa manzil, cheklangan allowlist (`192.168.0.0/16`) | 12/12 OK, ServerID o'zgarmadi, paket 704 MB |
+
+**e2e-windows** (Windows Server 2022, Windows PowerShell 5.1, haqiqiy o'rnatish):
+
+| Tekshiruv | Natija |
+|---|---|
+| Installer jim o'rnatildi, exit 0 | PASS |
+| Xizmat `EnterpriseAgent` — Running, Auto, LocalSystem | PASS |
+| Recovery: 3 x restart / 5000 ms, reset 86400 s, failureflag | PASS |
+| Watchdog task, firewall 3/3, sleep = never | PASS |
+| `LocalMachine\Root`, `LocalMachine\My`, SYSTEM `CurrentUser\My` — **o'zgarmadi** | PASS |
+| Agent serverga ulandi, web-panelda online | PASS |
+| Jarayon o'ldirildi -> 4 s da qayta ishladi | PASS |
+| Qayta ishga tushirish -> o'tkazib yuborildi (idempotent) | PASS |
+| `/UNINSTALL` -> xizmat, firewall, watchdog o'chirildi | PASS |
+
+Sinovlar topgan va tuzatilgan xatolar: `postinstall.ps1` dagi non-ASCII belgilar Windows
+PowerShell 5.1 da sintaksisni buzardi (endi CI'da ASCII tekshiruvi bor); NIC quvvat tejashini
+o'chirish noto'g'ri cmdlet parametri bilan edi (endi WMI `MSPower_DeviceEnable`).
+
+Avtomatik sinab bo'lmaydigan qismlar: Windows 10/11 **Home** (GitHub'da faqat Server runner bor —
+agent va skriptlar bir xil, lekin birinchi o'rnatishda bitta Home kompyuterda tekshiring),
+masofaviy ekran tasvirining sifati, sizning haqiqiy tarmog'ingiz (VPN, firewall).
